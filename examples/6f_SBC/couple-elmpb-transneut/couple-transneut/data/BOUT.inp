@@ -1,0 +1,450 @@
+# settings file for BOUT++ UEDGE benchmark test
+
+##################################################
+# settings used by the core code
+
+NOUT = 10
+TIMESTEP = 0.001
+
+wall_limit = 0.43
+ShiftXderivs = True
+TwistShift = True
+ShiftOrder = 0
+TwistOrder = 0
+
+non_uniform = True
+
+MZ = 2
+ZPERIOD = 1
+
+#ZMIN = 0.0
+#ZMAX = 5.5460e-02
+
+MXG = 2
+MYG = 2
+
+#grid="data/uedge.grd_Up_Ni_Tei_2d.nc"
+#grid="data/slab.grd.nc"
+#grid="data/circle.grd.hl2a16246_500ms.nc"
+#rid="data/circle.grd.hl2a.nc"
+#grid="data/g056129.05550_2_x260y64_psi090to106_fitTe_decresePF_gaussianY.nc"
+#grid = "data/test6.nc"
+#grid = "cmod_1100223012_1150_260x64y_0.9psi_v1_couple.bout.nc"
+#grid = "cmod_1160729008_00970_260x64y_0.85psi_v1_couple.bout.nc"
+#grid = "data/CMod_1100303017_01033_260x64y_0.9psi_v1.bout.nc"
+#grid = "data/d3d_eho_turbulence_nx260ny64_psi0.80_1.04_cylindrical_merge.nc"
+grid = cbm18_8_y064_x516_090309.nc
+#grid = "data/test4.nc"
+##!NB: NXPE must be divided by (NX-4), while 4 is the guard cells
+NXPE = 8
+
+dump_format = nc
+restart_format = nc
+restart = True
+[laplace]
+    laplace_nonuniform = True
+    nonuniform = True
+
+[comms]
+    async = False
+    pre_post = False
+    group_nonblock = False
+
+##################################################
+# FFTs
+
+[fft]
+    
+    fft_measure = True
+
+
+##################################################
+# derivative methods
+
+[ddx]
+    
+    first = C4
+    second = C4
+    upwind = W3
+
+[ddy]
+    
+    first = C4
+    second = C4
+    upwind = W3
+
+[ddz]
+    
+    first = C4
+    second = C4
+    upwind = W3
+
+##################################################
+# Solver settings
+
+[solver]
+    
+    # mudq, mldq, mukeep, mlkeep preconditioner options
+    mxstep = 100000
+    ATOL = 1e-08
+    RTOL = 1e-05
+
+##################################################
+# settings for trans_neu model
+
+[trans_neu]
+    
+    minimum_val = 1e-10
+    noshear = False
+    #include_curvature = false       # include curvature drive term?
+    #curvature_phi = true          # Include grad(Vexb) effects?
+    #diamag = true                 # Include diamagnetic effects?
+    #energy_flux = true            # Include energy flux effects?
+    #terms_cross = true            #Include cross terms in the potential equation?
+    #include_J0 = false            #Include driven current in vorticity equation?
+    #J1_all = true                 #Calculate the parallel current from ohm's law 
+    #J1_no_density = false          #just for test of density effect in the ohm's law
+    Turb_Diff_on = False
+    
+    ###***Parameters of basic physiscs  ***##
+    
+    NZ = 1
+    
+    AA = 2.0
+    ZZ = 1.0
+    
+    q95_input = 4.08
+    q_alpha = 1.0
+    Lnn_min = 0.001
+    Te_x = 10.0
+    Ti_x = 10.0
+    Tm_x = 0.0258
+    Ni_x = 1.0
+    density_unit = 1e+20
+    
+    #bmag=2.35                      # Tesla,normalized Magnetic field parameter, loaded automatically from g-file 
+    #Lbar=1.0                       # m, normalized Length parameter, loaded automatically from g-file
+    Lp_crit = 5e-06
+    
+    Mi = 1.0
+    Mn = 1.0
+    Mm = 2.0
+    W_ionz = 20.0
+    W_diss = 4.5
+    W_bind = 0.5
+    W_rec = 4.5
+    
+    ####
+    Diagnose = False
+    
+    ### diffusion parameters in unit m^2/s, (default value),
+    couple_to_6field = True
+    Diffcoefs_couple_dirichletBC = True
+    
+    Diffc_ni_perp = 0.1
+    Difft_ni_perp = 1.0
+    
+    chic_i_perp = 0.1
+    chit_i_perp = 4.0
+    
+    chic_e_perp = 0.1
+    chit_e_perp = 6.0
+    
+    chic_n_perp = 0.4
+    
+    ### step function of diffusion coefficients, priority lower than diffusion_coef_Hmode
+    diffusion_coef_step_function = False
+    diffusion_coef_step0 = 0.1
+    diffusion_coef_step1 = 1.0
+    
+    ### diffusion coefficients for initial_profile_Hmode
+    diffusion_coef_Hmode = True
+    diffusion_coef_Hmode0 = 1.0
+    diffusion_coef_Hmode1 = 10.0
+    aveY_g11J_xin = 0.0297361
+    
+    ###***Controls for Sheath boundary condition  ***##
+    ## NB: if there is a blowup/non-finite of Vi at y=0 which is due to Sheath Boundary, it has to
+    ##     run with 'Sheath_BC = false' for a while and then continue run with 'Sheath_BC = true'  
+    ##     or turn on initial_SOL_edgeval option
+    
+    Sheath_BC = False
+    #Sheath_BC_phi = true               # Apply Sheath Boundary condition for potential?
+    Sheath_width = 0
+    #Sheath_BC_x0=0.906 # sheat boundary condition start from x0 (i.e., cbm x0=54./64.,hl2a x0=58/64)
+    Sheath_BC_x0 = 0.0
+    #Ni_Constant_Grad = false
+    #Ni_Zero_Grad = true
+    
+    ###***Controls for particle recyclings at the plates and wall ***##
+    
+    SBC_particle_recycle = False
+    Wall_particle_recycle = False
+    Lni_wall = 0.05
+    alpha_vn = 0.0
+    angle_B_plate = 3.1415926/6.
+    Rate_recycle = 1.0
+    
+    ###***Contorls of Evolving Equation of Quantities *****####
+    Evolving_Eqn_Ti = False
+    Evolving_Eqn_Te = False
+    Evolving_Eqn_Vi = False
+    
+    
+    ###***Controls of different terms ***##
+    
+    term_GparkappaTe_GparTe = True
+    
+    terms_recombination = False
+    #terms_exb = false
+    #######################################################################
+    # BRACKET_METHOD flags:
+    # 0:BRACKET_STD; derivative methods will be determined
+    #   by the choices C or W in this input file
+    # 1:BRACKET_SIMPLE; 2:BRACKET_ARAKAWA; 3:BRACKET_CTU.
+    
+    bracket_method_exb = 0
+    bracket_method_mag = 2
+    ####################################################################### 
+    terms_Gradpar_pn = True
+    terms_Gradpar_eta0n = True
+    terms_Diffcnn_par = True
+    terms_NnGradpar_Vn = False
+    terms_Gradperp_diffcoefs = False
+    
+    ###*** external sources  ***###
+    external_sources = False
+    extsrcs_balance_diffusion = False
+    
+    x0_extS = 0.98
+    width_extS = 0.018
+    coef_coregrad_extS = 0.0021
+    amp_spi_ext = 20.0
+    amp_see_ext = 20000.0
+    amp_sei_ext = 20000.0
+    
+    ###***Controls of nl_filter to smooth data ***##
+    
+    nlfilter_noisy_data = False
+    nlfilter_Gradpar_logNn = False
+    nlfilter_Vnpol = False
+    filter_para = 0.2
+    nlfilter_Gradperp_diffcoefs = False
+    filter_perp = 0.5
+    
+    ###***Controls of initial profiles  ***##
+    # Initial file parameters
+    # if initial_profile_exp=true, i.e, Te=Te_edge+Te_core/(1+exp(2.*(GlobalX-Initfile_x0)/Initfile_w_ped))
+    # if initial_profile_linear=true, i.e,  Te=Te_edge - dTedx_xin_au*(psi_xout_y0-psi)
+    load_grid_trans = False
+    profiles_lasttimestep = False
+    load_grid_profiles = True
+    load_experiment_profiles = False
+    initial_profile_exp = False
+    initial_profile_linear = False
+    initial_profile_Hmode = False
+    
+    initial_SOL_edgeval = False
+    
+    # paramters public for all kinds of profiles
+    Te_core = 1000.0
+    Te_edge = 10.0
+    Ti_core = 1000.0
+    Ti_edge = 10.0
+    Ni_core = 2.0
+    Ni_edge = 0.1
+    
+    #dNidx_xin_au = -100.0           # a.u. NB: same as bndry of Ni at xin
+    dNidx_xin_au = -5.4047
+    dTidx_xin_au = -0.0
+    dTedx_xin_au = -0.0
+    #dTidx_xin_au = -12.794           # a.u. NB: same as bndry of Ti at xin
+    #dTedx_xin_au = -5.737           # a.u. NB: same as bndry of Te at xin
+    
+    # parameters of initial_profile_exp
+    Initfile_x0 = 0.4
+    Initfile_w_ped = 0.2
+    
+    # parameters of initial_profile_linear
+    
+    psi_xout_y0 = 0.255521
+    #psi_xout_y0 = 0.183348           # (hl2a w/ X point), different for different g-file 
+    
+    # parameters of initial_profile_Hmode
+    x0_ped = 0.98
+    width_ped = 0.018
+    coef_coregrad_ped = 0.01
+    coef_corenlarge_ped = 18.0
+    
+    ###* Controls of fueling, set SMBI locations, constant flux BC 
+    
+    SMBI_LFS = False
+    
+    Nm0 = 1.0
+    Vm0 = -1000.0
+    
+    CF_BC_x0 = 1.03
+    #CF_BC_y0=0.48                   # circle geometry w/o X point 
+    #CF_BC_y1=0.52
+    CF_BC_y0 = 0.59
+    CF_BC_y1 = 0.64
+    CF_BC_z0 = 0.0
+    CF_BC_z1 = 2.0
+    
+    ### Spitzer resistivity 
+    spitzer_resist = True
+    
+    ###########################################################li2016
+    #constn0 = false        # constant density
+    #n0_fake_prof = true    #use the hyperbolic profile of n0. If both  n0_fake_prof and T0_fake_prof are false, use the profiles from grid file
+    #n0_height = 0.364        #the total height of profile of N0, in percentage of Ni_x
+    #n0_ave = 0.2          #the constant tail of N0 profile, in percentage of Ni_x
+    #n0_width = 0.1         #the width of the gradient of N0, in percentage of x
+    #n0_center = 0.633      #the the center of N0, in percentage of x
+    #n0_bottom_x = 0.81     #the start of flat region of N0 on SOL side, in percentage of x
+    #T0_fake_prof = false    #use the costant profile of T0. It is prior to n0_fake_prof
+    #Tconst = -1.0             #the amplitude of Ti0 and Te0, in percentage of Tibar
+    
+    #xloc = 1.0           # Position in X direction, normalized Psi
+    #yloc = 32            # Position in Y direction, grid index
+    
+    #iterative_phi0 = true
+    #J_para0=true
+    #sbc_lambda0 = 1.0e1
+    #sbc_lambda1 = 1.0e5
+    #Mu_perp = 1.0e0
+    #D_perp = 0.0
+    #Mu_para = 1.0e6
+    #RF_coef = 10.0
+    
+    ## Vacuum region control
+    
+    #vacuum_pressure = 0.02 # the pressure below which it is considered vacuum
+    # fraction of peak pressure
+    #vacuum_trans = 0.01   # transition width (fraction of P)
+    
+    ## Resistivity and Hyper-resistivity
+    
+    #vac_lund = 1.0e8    # Lundquist number in vacuum  (negative -> infinity)
+    #core_lund = 1.0e8  # Lundquist number in core (negative -> infinity)
+    ###########################################################liend
+    
+    ### Controls of bootstrap current calculation for elm-pb cases
+    BScurrent = False
+    Aratio = 0.35
+
+##################################################
+# settings for individual variables
+# The section "All" defines default settings for all variables
+# These can be overridden for individual variables in
+# a section of that name.
+
+[All]
+    scale = 0.0
+
+# initial profile shape
+# ---------------------
+# 0 - constant
+# 1 - Gaussian
+# 2 - Sinusoidal
+# 3 - Mix of mode numbers (like original BOUT)
+
+#xs_opt = 1
+#ys_opt = 2
+#zs_opt = 3
+
+#xs_s0 = 0.5
+#xs_wd = 0.5
+
+#ys_mode = 1
+
+#zs_mode = 1 # toroidal mode number
+
+# boundary conditions
+# -------------------
+# dirichlet      = zero value
+# dirichlet(val) = Fix at val
+
+# neumann        = zero gradient 
+# neumann (val)  = Fix gradient (NB:boundary_stardard.cxx should be modified)
+# NB one bug: neumann(val) for a positive val, gradient at _xin is positive but at _xout is negative!!! Be careful!
+# zerolaplace    = Laplacian = 0, decaying solution
+# constlaplace   = Laplacian = 0, decaying solution
+#
+# Regions: core, pf, sol, target
+#          xin, xout, ydown, yup, all
+#
+# All boundaries can be made relaxing e.g.
+#    "relax(dirichlet(1.))" will relax towards 1
+# To specify a relaxation rate (1/timescale), pass an argument to relax:
+#    "relax(dirichlet(1.), 10)" sets the rate to 10. (the default).
+#
+# NOTE: The boundary quantities are normalised to
+#       the values set in the grid file:
+# Te_x = 10 eV
+# Ni_x = density m^-3, NB: see above please
+# Vi_x = 21850 m/s  NB: Depends on bmag, Te_x, AA and ZZ
+
+
+#bndry_all = neumann # Default for all variables, boundaries
+#bndry_all = dirichlet ## circle
+[Ni]
+    
+    #bndry_xin  = neumann(0.00489)          # NB: same as dNidx_xin_au
+    bndry_xin = neumann(-5.4047)
+    #bndry_xout  = neumann
+    #bndry_xin  = relax(dirichlet(0.897214))   # val=Ni_edge/Ni_x   NB: turn off if recycling
+    bndry_xou = relax(dirichlet(0.00888330))
+    bndry_pf = neumann
+
+[Vi]
+    
+    bndry_xin = neumann
+    bndry_xout = neumann
+
+[Te]
+    
+    #bndry_xin = neumann(5.737)          # NB: same as dTedx_xin_au
+    bndry_xin = neumann(-1.e-10)
+    #bndry_xout  = neumann
+    bndry_pf = neumann
+    #bndry_xin  = relax(dirichlet(100.))   # val=Te_edge/Te_x
+    bndry_xout = relax(dirichlet(100.))
+#bndry_pf  = relax(dirichlet(1.89))     # val=Te_edge/Te_x
+
+
+[Ti]
+    
+    
+    #bndry_xin  = relax(dirichlet(100.))   # val=Te_edge/Te_x
+    bndry_xout = relax(dirichlet(100.))
+    bndry_xin = neumann(-1.e-10)
+    #bndry_xout  = neumann
+    bndry_pf = neumann
+#bndry_xout  = relax(dirichlet(5.))   # val=Ti_edge/Ti_x
+#bndry_pf  = relax(dirichlet(1.89))     # val=Ti_edge/Ti_x
+
+
+[Nn]
+    bndry_xin = neumann
+    bndry_xout = neumann
+#bndry_pf = relax(dirichlet(1.e-10))
+
+[Tn]
+    bndry_xin = neumann
+    
+    bndry_xout = neumann
+
+[Vn]
+    
+    bndry_xin = neumann
+    bndry_xout = neumann
+
+[Nm]
+    bndry_xin = neumann
+    bndry_xout = neumann
+
+[Vm]
+    
+    bndry_xin = neumann
+    bndry_xout = neumann

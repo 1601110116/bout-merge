@@ -1,0 +1,9 @@
+#PBS -q regular
+#PBS -l walltime=0:15:00
+#PBS -l mppwidth=16
+#PBS -e my_job.err.$PBS_JOBID
+#PBS -o my_job.out.$PBS_JOBID
+
+
+cd $PBS_O_WORKDIR
+aprun -n 16 ./elm_pb

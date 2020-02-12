@@ -1,0 +1,8 @@
+ModuleCmd_Switch.c(179):ERROR:152: Module 'PrgEnv-intel' is currently not loaded
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+slurmstepd: error: *** STEP 6698885.0 ON nid00459 CANCELLED AT 2017-09-08T00:10:48 DUE TO TIME LIMIT ***
+slurmstepd: error: *** JOB 6698885 ON nid00459 CANCELLED AT 2017-09-08T00:10:48 DUE TO TIME LIMIT ***
+srun: got SIGCONT
+srun: forcing job termination
+srun: error: nid00466: tasks 160-164,166-167,169-177,179-183,185,187,189-191: Terminated
+srun: Terminating job step 6698885.0

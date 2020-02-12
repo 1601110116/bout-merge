@@ -1,0 +1,346 @@
+# settings file for BOUT++
+# High-Beta reduced MHD case
+
+##################################################
+# Global settings used by the core code
+
+NOUT = 5
+TIMESTEP = 1.0
+archive = 20
+wall_limit = 0.43
+
+ShiftXderivs = True
+TwistShift = True
+ShiftOrder = 0
+TwistOrder = 0
+non_uniform = True
+
+MZ = 17
+ZPERIOD = 15
+
+MXG = 2
+MYG = 2
+
+NXPE = 32
+
+grid = cbm18_8_y064_x516_090309.nc
+#grid = "cbm18_dens8.grid_nx68ny64.nc"  # Grid file
+
+dump_format = nc
+restart_format = nc
+
+StaggerGrids = False
+restart = True
+
+##################################################
+# Communications
+# Fastest setting depends on machine and MPI
+# implementation. Do not affect result.
+
+[comms]
+    
+    async = False
+    pre_post = False
+    group_nonblock = False
+
+##################################################
+# Laplacian inversion routines
+
+[laplace]
+    
+    laplace_nonuniform = True
+    nonuniform = True
+# max_mode = 16  # Maximum N to solve for
+
+##################################################
+# FFTs
+
+[fft]
+    
+    fft_measure = True
+
+##################################################
+# derivative methods
+
+[ddx]
+    
+    first = C4
+    second = C4
+    upwind = W3
+
+[ddy]
+    
+    first = C4
+    second = C4
+    upwind = W3
+
+[ddz]
+    
+    first = C4
+    second = C4
+    upwind = W3
+
+##################################################
+# Solver settings
+
+[solver]
+    
+    # mudq, mldq, mukeep, mlkeep preconditioner options
+    ATOL = 1e-08
+    RTOL = 1e-05
+    
+    use_precon = False
+    use_jacobian = False
+    
+    mxstep = 50000
+    adams_moulton = False
+    func_iter = False
+
+##################################################
+# settings for high-beta reduced MHD
+
+[highbeta]
+    
+    #hyperbolic tanh profile, N0 = N0tanh(n0_height*Nbar, n0_ave*Nbar, n0_width, n0_center) 
+    n0_fake_prof = True
+    change_fakeN0_gridNi0 = True
+    n0_height = 0.55
+    n0_ave = 0.2
+    n0_width = 0.1
+    n0_center = 0.633
+    n0_bottom_x = 0.81
+    T0_fake_prof = False
+    Tconst = -1.0
+    
+    constn0 = False
+    
+    density = 1e+20
+    # used to produce output normalisations
+    Low_limit = 1e-10
+    
+    evolve_jpar = False
+    # EXPERIMENTAL
+    
+    evolve_pressure = True
+    
+    phi_constraint = False
+    
+    ## Effects to include/exclude
+    
+    include_jpar0 = True
+    include_curvature = True
+    
+    compress = False
+    nonlinear = True
+    
+    diamag = True
+    diamag_grad_t = False
+    diamag_phi0 = True
+    
+    gyroviscous = True
+    Zeff = 1
+    
+    ### output turbulent coefficients for TNT(TiNiTe) transport
+    # calculated from (VExB)r
+    output_vradial = True
+    output_transport_couple = True
+    chicouple_calc_withP = True
+    Ratio_tilde_TioverNi = 0.0
+    
+    #################################################
+    # BRACKET_METHOD flags:
+    # 0:BRACKET_STD; derivative methods will be determined 
+    #   by the choices C or W in this input file
+    # 1:BRACKET_SIMPLE; 2:BRACKET_ARAKAWA; 3:BRACKET_CTU.
+    
+    bm_exb_flag = 0
+    bm_mag_flag = 2
+    ##################################################################
+    withflow = False
+    D_0 = 130000
+    D_s = 20
+    K_H_term = False
+    sign = -1
+    x0 = 0.855
+    D_min = 3000
+    ##################################################################
+    
+    eHall = False
+    AA = 2.0
+    
+    noshear = False
+    
+    relax_j_vac = False
+    relax_j_tconst = 0.01
+    
+    ## Toroidal filtering
+    filter_z = False
+    filter_z_mode = 1
+    low_pass_z = 16
+    zonal_flow = 0
+    zonal_field = 0
+    zonal_bkgd = -1
+    
+    ## Jpar smoothing
+    smooth_j_x = True
+    lowpass_j_z = 16
+    
+    ## mask in x boundaries
+    mask_j_x = True
+    
+    ## Magnetic perturbations
+    include_rmp = False
+    
+    simple_rmp = False
+    rmp_n = 3
+    rmp_m = 6
+    rmp_factor = 0.0001
+    rmp_ramp = 0.0001
+    rmp_polwid = -1.0
+    rmp_polpeak = 0.5
+    
+    ## Vacuum region control
+    
+    vacuum_pressure = 0.02
+    # fraction of peak pressure
+    vacuum_trans = 0.01
+    
+    ## Resistivity and Hyper-resistivity
+    
+    vac_lund = 100000000.0
+    core_lund = 100000000.0
+    hyperresist = -0.0001
+    
+    ## Inner boundary damping
+    
+    damp_width = -1
+    damp_t_const = 0.01
+    
+    ## Parallel pressure diffusion
+    
+    diffusion_par = -1.0
+    diffusion_p4 = -1e-05
+    diffusion_u4 = -1e-05
+    diffusion_a4 = -1e-05
+    
+    ## heat source in pressure in watts
+    
+    heating_P = -1
+    hp_width = 0.1
+    hp_length = 0.3
+    
+    ## sink rate in pressure
+    
+    sink_P = -1
+    sp_width = 0.04
+    sp_length = 0.15
+    
+    
+    ## left edge sink rate in vorticity
+    sink_Ul = -10.0
+    su_widthl = 0.06
+    su_lengthl = 0.1
+    
+    ## right edge sink rate in vorticity
+    sink_Ur = -10.0
+    su_widthr = 0.06
+    su_lengthr = 0.1
+    
+    ## Viscosity and Hyper-viscosity
+    
+    viscos_par = -0.1
+    viscos_perp = -1.0
+    hyperviscos = -1.0
+    
+    ## Compressional terms (only when compress = true)
+    phi_curv = True
+    # gamma = 1.6666
+    
+    ## field inversion flags: Add the following
+    #  1 - Zero-gradient DC component on inner boundary
+    #  2 - Zero-gradient AC component on inner boundary
+    #  4 -      "        DC     "      " outer    "
+    #  8 -      "        AC     "      " outer    "
+    # 16 - Zero all DC components of the result
+    # 32 - Don't use previous solution to start iterations
+    #      (iterative methods only) 
+    # 64 - Set the width of the boundary layer to 1
+    # 128 - use 4th order differencing
+    # 256 - Laplacian = 0 inner boundary (combine 2nd & 4th-order)
+    # 512 - Laplacian = 0 outer boundary ( sometimes works )
+    
+    #phi_flags = 74  # inversion flags for phi (2+8+64+128)
+    phi_flags = 769
+    
+    #apar_flags = 74 # 2+8
+    apar_flags = 769
+
+##################################################
+# settings for individual variables
+# The section "All" defines default settings for all variables
+# These can be overridden for individual variables in
+# a section of that name.
+
+[All]
+    scale = 0.0
+    
+    # form of initial profile:
+    # 0 - constant
+    # 1 - Gaussian
+    # 2 - Sinusoidal
+    # 3 - Mix of mode numbers (like original BOUT)
+    
+    xs_opt = 1
+    ys_opt = 1
+    zs_opt = 2
+    
+    xs_s0 = 0.5
+    xs_wd = 0.1
+    
+    ys_s0 = 0.5
+    ys_wd = 0.3
+    
+    zs_mode = 1
+    
+    # boundary conditions
+    # -------------------
+    # dirichlet    - Zero value
+    # neumann      - Zero gradient
+    # zerolaplace  - Laplacian = 0, decaying solution
+    # constlaplace - Laplacian = const, decaying solution
+    #
+    # relax( )   - Make boundary condition relaxing
+    
+    bndry_all = dirichlet
+
+[U]
+    
+    scale = 1e-05
+
+[P]
+    bndry_core = neumann
+#scale = 1.0e-5
+
+[Psi]
+    
+    # zero laplacian
+    bndry_xin = zerolaplace
+    bndry_xout = zerolaplace
+
+[J]
+    
+    # Zero gradient in the core
+    bndry_core = neumann
+
+[Vpar]
+    
+    bndry_core = neumann
+
+[phi]
+    
+    bndry_core = neumann
+
+[Dicouple]
+    
+    bndry_xin = relax(dirichlet(0.))
+    bndry_xout = relax(dirichlet(0.))

@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# trap TERM or INT interrupts
+trap stop_job TERM INT
+stop_job(){
+   echo "caught SIGTERM or SIGINT: stopping job $QPID_SIMPLE..."
+   $DEL $QPID_SIMPLE
+   exit 9
+}
+
+if [ -z "$1" ]; then
+   echo "syntax: qprint PID output_FILE error_FILE"
+   exit 1
+fi
+
+QPID_SIMPLE=`echo $1 | sed 's/\..*//g'`
+QPID=$1
+
+unset STDOUT_TAIL_RUNNING
+unset QST
+unset QSTOLD
+
+# determine queue manager
+if which squeue >/dev/null 2>/dev/null -a which scancel >/dev/null 2>/dev/null
+then
+   STAT="squeue"
+   DEL="scancel"
+elif which qstat  >/dev/null 2>/dev/null -a which qdel >/dev/null 2>/dev/null
+then
+   STAT="qstat"
+   DEL="qdel"
+else
+   exit 10
+fi
+
+COUNT=0
+while [ 1 ]; do
+
+   QST=`$STAT | grep $QPID_SIMPLE`
+   if [ "$STAT" == "squeue" ]; then
+      QST=`echo $QST | sed 's/:[0-9][0-9]\ /:XX\ /g'`
+   fi
+
+   #no such job (wait 60 seconds at the beginning to allow job to start)
+   if [ -z "$QST" ]; then
+      if [ $COUNT -gt 60 ]; then
+          echo 'OUT 1'
+          break
+      elif [ -n "$STDOUT_TAIL_RUNNING" ]; then
+          echo 'OUT 2'
+          break
+      fi
+   fi
+
+   #Job is running
+   if [[ $QST == *" R "* ]]; then
+       :
+   #Job is exiting after having run
+   elif [[ $QST == *" C "* ]]; then
+     break
+   #Job had error
+   elif [[ $QST == *" E "* ]]; then
+     break
+   #Delete jobs waiting in error state
+   elif [[ $QST == *" Eqw "* ]]; then
+     qdel $QPID
+     break
+   #estimated start time
+   elif [ -n "$QST" ]; then
+       if hash showstart 2>/dev/null; then
+           ST=`showstart $QPID 2> /dev/null | grep 'Estimated Rsv based start in' | sed s/.\*on\ //g`
+           DATE=`date`
+           QST=`echo $QST  [EST:$ST]`
+       fi
+   fi
+
+   #if tailing, pass
+   if [ -n "$STDOUT_TAIL_RUNNING" ]; then
+      :
+   #if output file shows up, start tailing
+   elif [ -f "$2" ]; then
+      tail -f -n 1000 $2 &
+      TAIL_PID=$!
+      STDOUT_TAIL_RUNNING=1
+   #if status changed, print
+   elif [ "$QSTOLD" != "$QST" ]; then
+      echo $QST
+   fi
+
+   #status as old status
+   QSTOLD=$QST
+   COUNT=$((COUNT+1))
+
+   #continue waiting
+   sleep 1
+done
+
+sleep 1
+
+#print final state
+date
+echo $QST
+
+#print standard output if job exited before tail could start
+#(wait 10 seconds for output file to show up)
+if [ -z "$STDOUT_TAIL_RUNNING" ]; then
+   COUNT=0
+   while [ $COUNT -lt 10 ]; do
+       if [ -f "$2" ]; then
+           cat $2
+           break
+       fi
+       sleep 1
+       COUNT=$((COUNT+1))
+   done
+else
+    kill -9 $TAIL_PID
+fi
+
+#print standard error
+if [ -f "$3" ]; then
+   echo '-== STD_ERR ==-'
+   cat $3
+fi

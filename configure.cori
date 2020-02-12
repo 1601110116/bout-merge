@@ -1,0 +1,7 @@
+##module swap PrgEnv-intel PrgEnv-gnu
+setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/global/project/projectdirs/bout/local/20190816/usr/lib
+
+./configure \
+--with-netcdf=/global/project/projectdirs/bout/local/20190816/usr/ \
+--with-fftw=/global/project/projectdirs/bout/local/20190816/usr/
+

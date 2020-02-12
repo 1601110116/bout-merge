@@ -1,0 +1,9 @@
+## module swap PrgEnv-intel PrgEnv-gnu
+setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/global/project/projectdirs/bout/local/20190816/usr/lib
+
+## export PETSC_DIR=/global/homes/b/bzhu/libraries/Cori_Haswell_intel/petsc-3.5.4/installed
+
+./configure \
+--with-netcdf=/global/project/projectdirs/bout/local/20190816/usr/ \
+--with-fftw=/global/project/projectdirs/bout/local/20190816/usr/ \
+--with-petsc=/global/homes/b/bzhu/libraries/Cori_Haswell_intel/petsc-3.5.4/installed

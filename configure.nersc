@@ -1,0 +1,89 @@
+#!/bin/bash -i
+# basic *BASH* script for BOUT++ compilation on NERSC.
+#
+# USAGE:
+#   # in BOUT_TOP
+#   source configure.nersc
+#
+# __author__ = 'JGChen'
+# __date__ = '05172018'
+# __version__ = '0.3'
+# __email__ = 'cjgls@pku.edu.cn'
+#
+
+if [ $0 != "-bash" ]
+then
+    echo "Usage: "
+    echo "  # in BOUT_TOP"
+    echo "  source configure.nersc"
+    exit 1
+fi
+
+# >>>>>> compiler environment setting <<<<<<<
+# using intel compiler by default, switch to gnu compiler if you want:
+# module switch PrgEnv-intel PrgEnv-gnu
+
+# >>>>>> if want to run code with KNL environment when on cori <<<<<<
+if [[ "$NERSC_HOST" == "cori" ]]
+then
+    alias k2h="module switch craype-mic-knl craype-haswell > /dev/null 2>&1"
+    alias h2k="module switch craype-haswell craype-mic-knl > /dev/null 2>&1"
+    echo -n "Choose cluster(h: HSW, k: KNL): "
+    read options
+    case $options in
+        h) k2h && echo "ENV: HSW" ;;
+        k) h2k && echo "ENV: KNL" ;;
+        *) ;;
+    esac
+fi
+
+# >>>>>> load modules required <<<<<<
+# put the following lines to ~/.bashrc.ext in case of failing to compile
+# examples when logining on cluster next time.
+module load cray-fftw
+module load cray-netcdf
+
+# to get rid of warning:
+#   H5PL.c:(.text+0x5be): warning: Using 'dlopen' in statically linked
+#   applications requires at runtime the shared libraries from the
+#   glibc version used for linking
+export CRAYPE_LINK_TYPE=dynamic
+
+# >>>>>> configure && make <<<<<<
+echo -n "Compile? (y/N): "
+read options
+case $options in
+    y) echo "Compiling ..."
+        # clean files created by `make`
+        make clean > /dev/null 2>&1
+        # clean files created by `./configure`
+        make distclean > /dev/null 2>&1
+
+        # configure && make
+        ./configure MPICC=cc MPICXX=CC \
+            --with-fftw --with-netcdf       `# basic requirements`
+
+        if [ $? = 0 ]
+        then
+            echo "-------------------------------!"
+            echo "Successful BOUT++ Configuration!"
+            echo "Type 'make' to compile"
+        fi
+        ;;
+    *) ;;
+esac
+
+
+# >>>>>> WARNINGS <<<<<<
+# 1. need to load modules and update compiler settings every time you login,
+#   or you can put these settings to ~/.bashrc.ext.
+#   If not, runtime error encountered.
+# 2. --with-hdf5
+#   if using Anaconda, hdf5.h in it may cause compiling or running jobs failed.
+#   if ***HDF5 library version mismatched error***, then comment out
+#   lines 5699-5710 in `configure` to disable checking hdf5:
+#       for i in h5cc h5pcc h5diff h5ls
+#       do
+#           ...
+#       done
+#
