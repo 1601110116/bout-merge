@@ -50,6 +50,7 @@ set(BOUT_SOURCES
         ./include/bout/invert/laplacexy.hxx
         ./include/bout/invert/laplacexz.hxx
         ./include/bout/invert/laplace3d.hxx
+        ./include/bout/invert/laplacexy2.hxx
         ./include/bout/mesh.hxx
         ./include/bout/petsclib.hxx
         ./include/bout/physicsmodel.hxx
@@ -172,6 +173,7 @@ set(BOUT_SOURCES
         ./src/invert/laplace3d/laplace3d_factory.cxx
         ./src/invert/laplace3d/laplace3d_factory.hxx
         ./src/invert/laplacexy/laplacexy.cxx
+        ./src/invert/laplacexy2/laplacexy2.cxx
         ./src/invert/laplacexz/impls/cyclic/laplacexz-cyclic.cxx
         ./src/invert/laplacexz/impls/cyclic/laplacexz-cyclic.hxx
         ./src/invert/laplacexz/impls/petsc/laplacexz-petsc.cxx
@@ -470,7 +472,7 @@ endif()
 message(STATUS "LAPACK support: ${USE_LAPACK}")
 set(BOUT_HAS_LAPACK ${USE_LAPACK})
 
-option(USE_PETSC "Enable support for PETSc time solvers and inversions" OFF)
+option(USE_PETSC "Enable support for PETSc time solvers and inversions" ON)
 if (USE_PETSC)
   if (NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
     # Cray wrappers sort this out for us
