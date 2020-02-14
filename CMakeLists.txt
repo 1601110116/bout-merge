@@ -230,6 +230,8 @@ set(BOUT_SOURCES
         ./src/solver/impls/karniadakis/karniadakis.hxx
         ./src/solver/impls/petsc/petsc.cxx
         ./src/solver/impls/petsc/petsc.hxx
+        ./src/solver/impls/petsc-3.5/petsc-3.5.cxx
+        ./src/solver/impls/petsc-3.5/petsc-3.5.hxx
         ./src/solver/impls/power/power.cxx
         ./src/solver/impls/power/power.hxx
         ./src/solver/impls/pvode/pvode.cxx
@@ -476,11 +478,14 @@ option(USE_PETSC "Enable support for PETSc time solvers and inversions" ON)
 if (USE_PETSC)
   if (NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
     # Cray wrappers sort this out for us
-    find_package(PETSc REQUIRED)
+    #find_package(PETSc REQUIRED)
+    find_package(PETSc COMPONENTS CXX)
     target_link_libraries(bout++ PUBLIC PETSc::PETSc)
   endif()
   target_compile_definitions(bout++
           PUBLIC "BOUT_HAS_PETSC")
+  target_compile_definitions(bout++
+          PUBLIC "BOUT_HAS_PETSC_3_5")
 endif()
 message(STATUS "PETSc support: ${USE_PETSC}")
 set(BOUT_HAS_PETSC ${USE_PETSC})

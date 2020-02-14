@@ -25,6 +25,8 @@
 
 cmake_policy(VERSION 3.3)
 
+set(PETSC_DIR "/home/ylang/Softwares/petsc-3.5.4")
+set(PETSC_ARCH "arch-linux2-cxx-debug")
 find_package(MPI REQUIRED)
 
 set(PETSC_VALID_COMPONENTS
