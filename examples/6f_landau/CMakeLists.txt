@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9...3.12)
 
-set(EXE_NAME 6f_landau_dev6)
+set(EXE_NAME 6f_landau_dev7)
 project(${EXE_NAME} LANGUAGES CXX)
 
 set(CMAKE_PREFIX_PATH /home/ylang/local/bout-merge)
