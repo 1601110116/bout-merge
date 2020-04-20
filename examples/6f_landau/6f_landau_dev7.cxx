@@ -2416,9 +2416,9 @@ int physics_init(bool restarting) {
 
         Er0_dia = Upara0 * Grad(Pi0) / N0;
         mesh->communicate(Er0_dia);
-        Er0.x.applyBoundary();
-        Er0.y.applyBoundary();
-        Er0.z.applyBoundary();
+        Er0_dia.x.applyBoundary();
+        Er0_dia.y.applyBoundary();
+        Er0_dia.z.applyBoundary();
 
         Er0_net = Er0 - Er0_dia;
       } else { // WARNING: deprecated
