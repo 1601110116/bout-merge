@@ -167,7 +167,7 @@ int initial_profile(const char *name, Field3D &var)
               mesh->get(zShift, "zShift");
           }
           // generate zShift0, which is the zShift at xs_s0, tiled in x
-          xcoord_s0 = xs_s0 * mesh->GlobalNx;
+          xcoord_s0 = (int) (xs_s0 * (BoutReal) (mesh->GlobalNx));
           for (jx=0; jx < mesh->ngx; jx++){
               if (mesh->XGLOBAL(jx) == xcoord_s0) {
                   jx_s0 = jx;
