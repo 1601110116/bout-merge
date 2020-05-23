@@ -94,7 +94,7 @@ int initial_profile(const char *name, Field3D &var)
   Field2D phase_shift = 0.0;
   Field2D zShift = 0.0;
   Field2D jzShift = 0.0;
-  Field2D zShift0(-10000);
+  Field2D zShift0(-10000.0);
   int xcoord_s0;
   int jx_s0 = -1;
 
@@ -188,6 +188,7 @@ int initial_profile(const char *name, Field3D &var)
               }
           }
           mesh->communicate(zShift0);
+          SAVE_ONCE(zShift0);
           phase_shift = (zShift - zShift0) / (mesh->dz * (BoutReal) (mesh->ngz-1)) * (TWOPI * zs_mode);
           mesh->communicate(phase_shift);
           jzShift = (zShift - zShift0) / mesh->dz;
