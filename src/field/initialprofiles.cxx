@@ -187,8 +187,11 @@ int initial_profile(const char *name, Field3D &var)
                   MPI_Allreduce(&local_zShift0, &zShift0[jx][jy], 1, MPI_DOUBLE, MPI_MAX, BoutComm::get());
               }
           }
+          mesh->communicate(zShift0);
           phase_shift = (zShift - zShift0) / (mesh->dz * (BoutReal) (mesh->ngz-1)) * (TWOPI * zs_mode);
+          mesh->communicate(phase_shift);
           jzShift = (zShift - zShift0) / mesh->dz;
+          mesh->communicate(jzShift);
       }
 
     for (jx=0; jx < mesh->ngx; jx++) {
