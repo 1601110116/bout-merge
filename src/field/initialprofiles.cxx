@@ -42,6 +42,7 @@
 #include <field_factory.hxx>
 #include <output.hxx>
 #include <bout/constants.hxx>
+#include <boutcomm.hxx>
 
 #include <math.h>
 #include <string.h>
@@ -89,6 +90,14 @@ int initial_profile(const char *name, Field3D &var)
   BoutReal xs_wd, ys_wd, zs_wd;
   int jx, jy, jz;
   BoutReal cx, cy, cz;
+  bool DW_init;
+  Field2D phase_shift = 0.0;
+  Field2D zShift = 0.0;
+  Field2D jzShift = 0.0;
+  Field2D zShift0(-10000);
+  int xcoord_s0;
+  int jx_s0 = -1;
+
   
   CELL_LOC loc = CELL_DEFAULT;
   if (mesh->StaggerGrids) {
@@ -121,36 +130,66 @@ int initial_profile(const char *name, Field3D &var)
     var = scale*f.create3D(s, varOpts, NULL, loc);
   }else {
     // Backwards-compatible method
-    
-    // What type of profile? 0 - constant, 1 - Gaussian, 2 - Sinusoidal
-    
-    FIND_OPT(varOpts, allOpts, "xs_opt", xs_opt, 1);
-    FIND_OPT(varOpts, allOpts, "ys_opt", ys_opt, 0);
-    FIND_OPT(varOpts, allOpts, "zs_opt", zs_opt, 2);
-    
-    // Mode number (for sinusoidal)
-    
-    FIND_OPT(varOpts, allOpts, "xs_mode", xs_mode, 4);
-    FIND_OPT(varOpts, allOpts, "ys_mode", ys_mode, 4);
-    FIND_OPT(varOpts, allOpts, "zs_mode", zs_mode, 4);
-    
-    // Phase (for sinusoidal), in units of pi
-    
-    FIND_OPT(varOpts, allOpts, "xs_phase", xs_phase, 0.);
-    FIND_OPT(varOpts, allOpts, "ys_phase", ys_phase, 0.);
-    FIND_OPT(varOpts, allOpts, "zs_phase", zs_phase, 0.);
-    
-    // Gaussian peak location
-    
-    FIND_OPT(varOpts, allOpts, "xs_s0", xs_s0, 0.5);
-    FIND_OPT(varOpts, allOpts, "ys_s0", ys_s0, 0.5);
-    FIND_OPT(varOpts, allOpts, "zs_s0", zs_s0, 0.5);
-    
-    // Gaussian width
-    
-    FIND_OPT(varOpts, allOpts, "xs_wd", xs_wd, 0.2);
-    FIND_OPT(varOpts, allOpts, "ys_wd", ys_wd, 0.2);
-    FIND_OPT(varOpts, allOpts, "zs_wd", zs_wd, 0.2);
+
+      // What type of profile? 0 - constant, 1 - Gaussian, 2 - Sinusoidal
+
+      FIND_OPT(varOpts, allOpts, "xs_opt", xs_opt, 1);
+      FIND_OPT(varOpts, allOpts, "ys_opt", ys_opt, 0);
+      FIND_OPT(varOpts, allOpts, "zs_opt", zs_opt, 2);
+
+      // Mode number (for sinusoidal)
+
+      FIND_OPT(varOpts, allOpts, "xs_mode", xs_mode, 4);
+      FIND_OPT(varOpts, allOpts, "ys_mode", ys_mode, 4);
+      FIND_OPT(varOpts, allOpts, "zs_mode", zs_mode, 4);
+
+      // Phase (for sinusoidal), in units of pi
+
+      FIND_OPT(varOpts, allOpts, "xs_phase", xs_phase, 0.);
+      FIND_OPT(varOpts, allOpts, "ys_phase", ys_phase, 0.);
+      FIND_OPT(varOpts, allOpts, "zs_phase", zs_phase, 0.);
+
+      // Gaussian peak location
+
+      FIND_OPT(varOpts, allOpts, "xs_s0", xs_s0, 0.5);
+      FIND_OPT(varOpts, allOpts, "ys_s0", ys_s0, 0.5);
+      FIND_OPT(varOpts, allOpts, "zs_s0", zs_s0, 0.5);
+
+      // Gaussian width
+
+      FIND_OPT(varOpts, allOpts, "xs_wd", xs_wd, 0.2);
+      FIND_OPT(varOpts, allOpts, "ys_wd", ys_wd, 0.2);
+      FIND_OPT(varOpts, allOpts, "zs_wd", zs_wd, 0.2);
+
+      FIND_OPT(varOpts, allOpts, "DW_init", DW_init, false)
+      if (DW_init) {
+          if (mesh->get(zShift, "qinty")) {
+              mesh->get(zShift, "zShift");
+          }
+          // generate zShift0, which is the zShift at xs_s0, tiled in x
+          xcoord_s0 = xs_s0 * mesh->GlobalNx;
+          for (jx=0; jx < mesh->ngx; jx++){
+              if (mesh->XGLOBAL(jx) == xcoord_s0) {
+                  jx_s0 = jx;
+              }
+          }
+          if (jx_s0 > 0) {  // xs_s0 is at this processor, zShift0 for all jx are set to zShift at xs_s0
+              for (jx = 0; jx < mesh->ngx; jx++) {
+                  for (jy = 0; jy < mesh->ngy; jy++) {
+                      zShift0[jx][jy] = zShift[jx_s0][jy];
+                  }
+              }
+          }
+          for (jx=0; jx < mesh->ngx; jx++) {
+              for (jy=0; jy < mesh->ngy; jy++) {
+                  // Copy zShfit0 from the processor where xs_s0 is in
+                  BoutReal local_zShift0 = zShift0[jx][jy];
+                  MPI_Allreduce(&local_zShift0, &zShift0[jx][jy], 1, MPI_DOUBLE, MPI_MAX, BoutComm::get());
+              }
+          }
+          phase_shift = (zShift - zShift0) / (mesh->dz * (BoutReal) (mesh->ngz-1)) * (TWOPI * zs_mode);
+          jzShift = (zShift - zShift0) / mesh->dz;
+      }
 
     for (jx=0; jx < mesh->ngx; jx++) {
       BoutReal xcoord = mesh->GlobalX(jx);
@@ -161,7 +200,10 @@ int initial_profile(const char *name, Field3D &var)
 	
           cx=Prof1D(xcoord, xs_s0, 0., 1.0, xs_wd, xs_mode, xs_phase, xs_opt);
           cy=Prof1D(ycoord, ys_s0, 0., 1.0, ys_wd, ys_mode, ys_phase, ys_opt);
-          cz=Prof1D((BoutReal) jz, zs_s0, 0., (BoutReal) (mesh->ngz-1), zs_wd, zs_mode, zs_phase, zs_opt);
+//          cz=Prof1D((BoutReal) jz, zs_s0, 0., (BoutReal) (mesh->ngz-1), zs_wd, zs_mode,
+//                  zs_phase + phase_shift[jx][jy], zs_opt);
+          cz=Prof1D((BoutReal) jz + jzShift[jx][jy], zs_s0, 0., (BoutReal) (mesh->ngz-1), zs_wd, zs_mode,
+                  zs_phase, zs_opt);
 	
           var[jx][jy][jz] = scale*cx*cy*cz;
           if(!finite(var[jx][jy][jz])) {
@@ -179,12 +221,18 @@ int initial_profile(const char *name, Field3D &var)
             for(int i=1; i<= ball_n; i++) {
               // y - i * nycore
               cy=Prof1D(ycoord - i, ys_s0, 0., 1.0, ys_wd, ys_mode, ys_phase, ys_opt);
-              cz=Prof1D((BoutReal) jz + ((BoutReal) i)*ts/mesh->dz, zs_s0, 0., (BoutReal) (mesh->ngz-1), zs_wd, zs_mode, zs_phase, zs_opt);
+//              cz=Prof1D((BoutReal) jz + ((BoutReal) i)*ts/mesh->dz, zs_s0, 0., (BoutReal) (mesh->ngz-1),
+//                      zs_wd, zs_mode, zs_phase + phase_shift[jx][jy], zs_opt);
+              cz=Prof1D((BoutReal) jz + jzShift[jx][jy] + ((BoutReal) i)*ts/mesh->dz, zs_s0, 0., (BoutReal) (mesh->ngz-1),
+                      zs_wd, zs_mode, zs_phase, zs_opt);
               var[jx][jy][jz] += scale*cx*cy*cz;
               
               // y + i * nycore
               cy=Prof1D(ycoord + i, ys_s0, 0., 1., ys_wd, ys_mode, ys_phase, ys_opt);
-              cz=Prof1D((BoutReal) jz - ((BoutReal) i)*ts/mesh->dz, zs_s0, 0., (BoutReal) (mesh->ngz-1), zs_wd, zs_mode, zs_phase, zs_opt);
+//              cz=Prof1D((BoutReal) jz - ((BoutReal) i)*ts/mesh->dz, zs_s0, 0., (BoutReal) (mesh->ngz-1),
+//                      zs_wd, zs_mode, zs_phase + phase_shift[jx][jy], zs_opt);
+              cz=Prof1D((BoutReal) jz + jzShift[jx][jy] - ((BoutReal) i)*ts/mesh->dz, zs_s0, 0., (BoutReal) (mesh->ngz-1),
+                      zs_wd, zs_mode, zs_phase, zs_opt);
               var[jx][jy][jz] += scale*cx*cy*cz;
             }
           }else if(Ballooning) {
