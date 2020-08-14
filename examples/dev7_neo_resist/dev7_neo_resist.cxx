@@ -150,7 +150,7 @@ BoutReal g; // Only if compressible
 bool phi_curv;
 
 
-bool include_curvature, include_jpar0, compress0;
+bool include_curvature, include_jpar0, compress0, compresse;
 bool include_vipar;
 bool evolve_pressure, continuity;
 bool parallel_viscous;
@@ -165,16 +165,18 @@ BoutReal laplace_alpha; // test the effect of first order term of invert Laplace
 // Bootsctrap current
 bool BScurrent;
 bool radial_diffusion;
-Field3D Jpar_BS0, nu_estar, nu_istar;
-BoutReal Aratio;
+Field3D Jpar_BS0, nu_estar, nu_istar, ft;
+Field3D f33;
+Field3D cond_neo;
 Field3D diff_radial, ddx_ni, ddx_n0;
 BoutReal diffusion_coef_Hmode0, diffusion_coef_Hmode1;
 
 // neoclassical effects
 bool neoclassic_i, neoclassic_e;
+bool neo_resist, ft_simple;
+BoutReal major_radius, minor_radius, epsilon;
 Field3D xii_neo, xie_neo, Dri_neo, rho_i, rho_e, tmpddx2;
 Field3D heatf_neo_i, heatf_neo_e, partf_neo_i;
-BoutReal epsilon;
 
 // resistivity
 bool spitzer_resist;              // Use Spitzer formula for resistivity
@@ -331,7 +333,7 @@ Field3D C_phi;
 
 // Parameters
 
-BoutReal diffusion_par;  // Parallel thermal conductivity
+BoutReal diffusion_par;  // Parallel thermal conductivity is multiplied by this value. (<0 off)
 BoutReal diffusion_perp; // Perpendicular thermal conductivity (>0 open)
 
 // seems like obsolete stuff?
@@ -430,6 +432,7 @@ const Field3D BS_ft(const int index);
 const Field3D F31(const Field3D input);
 const Field3D F32ee(const Field3D input);
 const Field3D F32ei(const Field3D input);
+const Field3D F33(const Field3D input);
 
 // const Field2D smooth_xy(const Field2D &f, bool BoutRealspace);
 
@@ -1042,11 +1045,11 @@ int physics_init(bool restarting) {
 
     OPTION(options, continuity,            false);  // use continuity equation
     OPTION(options, compress0,             false);
+    OPTION(options, compresse,                 false);
     OPTION(options, gyroviscous,           false);
     OPTION(options, parallel_viscous,      false);
 
     OPTION(options, BScurrent,             false);
-    OPTION(options, Aratio,                 0.35);
 
     OPTION(options, radial_diffusion,      false);
     OPTION(options, diffusion_coef_Hmode0,   1.0);  // default value of radial diffusion coefficient
@@ -1240,7 +1243,7 @@ int physics_init(bool restarting) {
     OPTION(options, viscos_perp,            -1.0);  // Perpendicular viscosity
     OPTION(options, hyperviscos,            -1.0);  // Radial hyperviscosity
 
-    OPTION(options, diffusion_par,          -1.0);  // Parallel temperature diffusion
+    OPTION(options, diffusion_par,          -1.0);  // parallel thermal conductivity is multiplied by this coefficient (<0 off)
     OPTION(options, diffusion_perp,         -1.0);  // Perpendicular temperature diffusion
     OPTION(options, diff_par_flutter,      false);  // add magnetic flutter terms
     OPTION(options, full_sbc,              false);
@@ -1264,7 +1267,10 @@ int physics_init(bool restarting) {
     OPTION(options, hyperdiff_perp_u4,      -1.0);
     OPTION(options, neoclassic_i,          false);  // switch for ion neoclassical transport
     OPTION(options, neoclassic_e,          false);  // switch for electron neoclassical transport
-    OPTION(options, epsilon,                 0.2);  // the value of reverse aspect ratio
+    OPTION(options, neo_resist,            false);  // Include neoclassical effect in Spitzer resistivity
+    OPTION(options, ft_simple,              true);  // use a simpler formula to calculate ft (the fraction of trapped electron) instead of Sauter's
+    OPTION(options, major_radius,           0.68);  // R, in meter
+    OPTION(options, minor_radius,           0.21);  // a, in meter
 
     OPTION(options, output_Teterms,        false);
     OPTION(options, output_Titerms,        false);
@@ -1583,6 +1589,8 @@ int physics_init(bool restarting) {
     Btxy /= Bbar;
     B0 /= Bbar;
     hthe /= Lbar;
+    major_radius /= Lbar;
+    minor_radius /= Lbar;
     mesh->dx /= Lbar * Lbar * Bbar;
     I *= Lbar * Lbar * Bbar;
 
@@ -1693,21 +1701,14 @@ int physics_init(bool restarting) {
     J0 *= J0_factor;
     P0 *= P0_factor;
 
-//  Ne0.setBoundary("kappa");
-//  mesh->communicate(Ne0);
-//  Ne0.applyBoundary();
+
     Ne0.applyBoundary("neumann");
 
     Pi0 = N0 * Ti0;
     Pe0 = Ne0 * Te0;
     Pi0.applyBoundary("neumann");
     Pe0.applyBoundary("neumann");
-//  Pi0.setBoundary("kappa");
-//  Pe0.setBoundary("kappa");
-//  mesh->communicate(Pi0);
-//  mesh->communicate(Pe0);
-//  Pi0.applyBoundary();
-//  Pe0.applyBoundary();
+
 
     jpar1.setBoundary("J");
     u_tmp1.setBoundary("U");
@@ -1939,7 +1940,7 @@ int physics_init(bool restarting) {
     LnLambda = 24.0 - log(sqrt(Zi * Nbar * density * Ne0 / 1.e6) / (Tebar * Te0));
     output.write("\tlog Lambda: %e -> %e \n", min(LnLambda), max(LnLambda));
 
-    if (spitzer_resist) {
+    if (spitzer_resist || neo_resist) {
         // Use Spitzer resistivity
         output.write("");
         output.write("\tSpizter parameters");
@@ -2047,11 +2048,11 @@ int physics_init(bool restarting) {
             kappa_par_i *= kappa_par_i_fl / (kappa_par_i + kappa_par_i_fl);
             kappa_par_e *= kappa_par_e_fl / (kappa_par_e + kappa_par_e_fl);
         }
-        kappa_par_i *= Tipara1 * N0;
+        kappa_par_i *= diffusion_par * Tipara1 * N0;
         output.write("\tUsed normalized ion thermal conductivity: %e -> %e\n", min(kappa_par_i), max(kappa_par_i));
         // kappa_par_i.applyBoundary();
         // mesh->communicate(kappa_par_i);
-        kappa_par_e *= Tepara1 * Ne0;
+        kappa_par_e *= diffusion_par * Tepara1 * Ne0;
         output.write("\tUsed normalized electron thermal conductivity: %e -> %e\n", min(kappa_par_e), max(kappa_par_e));
         // kappa_par_e.applyBoundary();
         // mesh->communicate(kappa_par_e);
@@ -2115,6 +2116,7 @@ int physics_init(bool restarting) {
         dump.add(kappa_perp_e, "kappa_perp_e", 1);
     }
 
+    epsilon = minor_radius / major_radius;
     if (neoclassic_i) {
         rho_i = 1.02e-4 * sqrt(AA * Ti0 * Tibar) / B0 / Bbar / Zi;
         // Dri_neo = (1.+1.6*q95)*(1.+Tau_ie)*nu_i*rho_i*rho_i;
@@ -2440,6 +2442,7 @@ int physics_init(bool restarting) {
                 Er0_dia.x.applyBoundary();
                 Er0_dia.y.applyBoundary();
                 Er0_dia.z.applyBoundary();
+                mesh->communicate(Er0_dia);
 
                 Er0_net = Er0 - Er0_dia;
             } else { // WARNING: deprecated
@@ -2462,6 +2465,7 @@ int physics_init(bool restarting) {
                 Er0_dia.x.applyBoundary();
                 Er0_dia.y.applyBoundary();
                 Er0_dia.z.applyBoundary();
+                mesh->communicate(Er0_dia);
 
                 Er0 = Er0_dia;
                 mesh->communicate(Er0);
@@ -2622,25 +2626,35 @@ int physics_init(bool restarting) {
         // phi_sh0 *= log( 2.*sqrt(PI)*(c_se0-J0*B0*Bbar/(MU0*Lbar)/(Ne0*Nbar*density*ee))/vth_e0 );
     }
 
+    if (BScurrent || neo_resist) {
+        nu_estar.setLocation(CELL_YLOW);
+        nu_estar = nu_e * q95 * major_radius * Lbar / (vth_e) / pow(epsilon, 1.5);
+        output.write("Normalized electron collisionality: nu_e* = %e~%e\n", min(nu_estar, true), max(nu_estar, true));
+        ft = BS_ft(3000);
+        output.write("modified collisional trapped particle fraction: ft = %e~%e\n", min(ft, true), max(ft, true));
+    }
+    if (neo_resist) {
+        f33 = ft / (1. + (0.55 - 0.1 * ft) * sqrt(nu_estar) + 0.45 * (1. - ft) * nu_estar / Zi / sqrt(Zi));
+        cond_neo = F33(f33);
+        output.write("Neoclassical resistivity used\n");
+        output.write("\tlocal max eta is %e~%e * eta_Sp\n", 1/max(cond_neo, true), 1/min(cond_neo, true));
+        eta /= cond_neo;
+    }
     if (BScurrent) {
         // TODO: check
         Field3D L31, L32, L34;
-        Field3D f31, f32ee, f32ei, f34, ft;
+        Field3D f31, f32ee, f32ei, f34;
         Field3D BSal0, BSal;
         Jpar_BS0.setLocation(CELL_YLOW);
-        nu_estar.setLocation(CELL_YLOW);
         nu_istar.setLocation(CELL_YLOW);
         Jpar_BS0.setBoundary("J");
 
-        nu_estar = 100. * nu_e * q95 * Lbar / (vth_e) / pow(Aratio, 1.5);
-        nu_istar = 100. * nu_i * q95 * Lbar / (vth_i) / pow(Aratio, 1.5);
+//        nu_istar = 100. * nu_i * q95 * Lbar / (vth_i) / pow(epsilon, 1.5);
+        nu_istar = nu_i * q95 * major_radius * Lbar / (vth_i) / pow(epsilon, 1.5);
         // nu_estar = 0.012 * N0*Nbar*density/1.e20*Zi*Zi*q95*Lbar/(Te0*Tebar/1000. * pow(Aratio, 1.5));
         // nu_istar = 0.012 * N0*Nbar*density/1.e20*Zi*q95*Lbar/(Ti0*Tibar/1000. * pow(Aratio, 1.5));
         output.write("Bootstrap current is included:\n");
-        output.write("Normalized electron collisionality: nu_e* = %e\n", max(nu_estar));
         output.write("Normalized ion collisionality: nu_i* = %e\n", max(nu_istar));
-        ft = BS_ft(100);
-        output.write("modified collisional trapped particle fraction: ft = %e\n", max(ft));
         f31 = ft / (1. + (1. - 0.1 * ft) * sqrt(nu_estar) + 0.5 * (1. - ft) * nu_estar / Zi);
         f32ee = ft / (1. + 0.26 * (1. - ft) * sqrt(nu_estar) + 0.18 * (1. - 0.37 * ft) * nu_estar / sqrt(Zi));
         f32ei = ft / (1. + (1. + 0.6 * ft) * sqrt(nu_estar) + 0.85 * (1. - 0.37 * ft) * nu_estar * (1. + Zi));
@@ -3031,7 +3045,7 @@ int physics_run(BoutReal t) {
     if (nonlinear) {
         vac_mask = (1.0 - tanh(((P0 + P) - vacuum_pressure) / vacuum_trans)) / 2.0;
         // Update resistivity
-        if (spitzer_resist) {
+        if (spitzer_resist || neo_resist) {
             // Use Spitzer formula
             eta = FZ * 1.03e-4 * Zi * LnLambda * ((Te_tmp * Tebar) ^ (-1.5)); // eta in Ohm-m. ln(Lambda) = 20
             eta /= MU0 * Va * Lbar;
@@ -3065,6 +3079,13 @@ int physics_run(BoutReal t) {
             // mesh->communicate(vth_e);
         }
 
+        if (neo_resist) {
+            nu_estar = nu_e * q95 * Lbar / (vth_e) / pow(epsilon, 1.5);
+            f33 = ft / (1. + (0.55 - 0.1 * ft) * sqrt(nu_estar) + 0.45 * (1. - ft) * nu_estar / Zi / sqrt(Zi));
+            cond_neo = F33(f33);
+            eta /= cond_neo;
+        }
+
         if (parallel_viscous && compress0) {
             eta_i0 = 0.96 * (Pi0 + Pi) * Tau_ie * nu_i * Tbar;
             pi_ci = -eta_i0 * 2. / sqrt(B0) * Grad_parP((sqrt(B0) * Vipar), CELL_YLOW);
@@ -3084,10 +3105,10 @@ int physics_run(BoutReal t) {
                 kappa_par_i *= kappa_par_i_fl / (kappa_par_i + kappa_par_i_fl);
                 kappa_par_e *= kappa_par_e_fl / (kappa_par_e + kappa_par_e_fl);
             }
-            kappa_par_i *= Tipara1 * N_tmp;
+            kappa_par_i *= diffusion_par * Tipara1 * N_tmp;
             // kappa_par_i.applyBoundary();
             // mesh->communicate(kappa_par_i);
-            kappa_par_e *= Tepara1 * Ne_tmp;
+            kappa_par_e *= diffusion_par * Tepara1 * Ne_tmp;
             // kappa_par_e.applyBoundary();
             // mesh->communicate(kappa_par_e);
 
@@ -3399,20 +3420,27 @@ int physics_run(BoutReal t) {
         Jpar *= mask_jx1d;
     }
 
-    if (compress0) {
-        if (nonlinear)
-            // Ni*Zi + Nimp*Zimp = Ne
-            // if (impurity_prof)
-            // Vepar = Vipar*N_tmp*Zi/Ne_tmp + Vipar*N_imp0*Z_imp/Ne_tmp - Jpar / Ne_tmp * Vepara;
-            // else
-            Vepar = Vipar - Jpar / Ne_tmp * Vepara;
-        else
-            // if (impurity_prof)
-            // Vepar = Vipar*N0*Zi/Ne0 + Vipar*N_imp0*Z_imp/Ne0 - Jpar / Ne0 * Vepara;
-            // else
-            Vepar = Vipar - Jpar / Ne0 * Vepara;
-        Vepar.applyBoundary();
-        mesh->communicate(Vepar);
+    if (compresse) {
+        if (compress0) {
+            if (nonlinear)
+                // Ni*Zi + Nimp*Zimp = Ne
+                // if (impurity_prof)
+                // Vepar = Vipar*N_tmp*Zi/Ne_tmp + Vipar*N_imp0*Z_imp/Ne_tmp - Jpar / Ne_tmp * Vepara;
+                // else
+                Vepar = Vipar - Jpar / Ne_tmp * Vepara;
+            else
+                // if (impurity_prof)
+                // Vepar = Vipar*N0*Zi/Ne0 + Vipar*N_imp0*Z_imp/Ne0 - Jpar / Ne0 * Vepara;
+                // else
+                Vepar = Vipar - Jpar / Ne0 * Vepara;
+            Vepar.applyBoundary();
+            mesh->communicate(Vepar);
+        } else {
+            if (nonlinear)
+                Vepar = -Jpar / Ne_tmp * Vepara;
+            else
+                Vepar = -Jpar / Ne0 * Vepara;
+        }
     }
 
     // xqx begin
@@ -4110,7 +4138,7 @@ int physics_run(BoutReal t) {
         ddt(Te) -= bracket(phi, Te, bm_exb); // Advection
     }
 
-    if (compress0) {
+    if (compresse) {
         // ddt(Te) -= Vepar * Grad_parP(Te0, CELL_YLOW);
         // ddt(Te) -= Vpar_Grad_par(Vepar, Te0);
 
@@ -4709,20 +4737,25 @@ void SBC_ydown_Grad_par(Field3D &var, const Field3D &value, bool PF_limit, BoutR
 }
 
 const Field3D BS_ft(const int index) {
-    Field3D result, result1;
-    result.allocate();
-    result1.allocate();
-    result1 = 0.;
+    Field3D result;
+    if (!ft_simple) {
+        Field3D result1;
+        result.allocate();
+        result1.allocate();
+        result1 = 0.;
 
-    BoutReal xlam, dxlam;
-    dxlam = 1. / max(B0) / index;
-    xlam = 0.;
+        BoutReal xlam, dxlam;
+        dxlam = 1. / max(B0, true) / index;
+        xlam = 0.;
 
-    for (int i = 0; i < index; i++) {
-        result1 += xlam * dxlam / sqrt(1. - xlam * B0);
-        xlam += dxlam;
+        for (int i = 0; i < index; i++) {
+            result1 += xlam * dxlam / sqrt(1. - xlam * B0);
+            xlam += dxlam;
+        }
+        result = 1. - 0.75 * B0 * B0 * result1;
+    } else {
+        result = 1 - (1 - epsilon) * (1 - epsilon) / sqrt(1 - epsilon * epsilon) / (1 + 1.46 * sqrt(epsilon));
     }
-    result = 1. - 0.75 * B0 * B0 * result1;
 
     return result;
 }
@@ -4757,6 +4790,17 @@ const Field3D F32ei(const Field3D input) {
     result = -(0.56 + 1.93 * Zi) / (Zi * (1 + 0.44 * Zi)) * (input - input * input * input * input);
     result += 4.95 / (1. + 2.48 * Zi) * (input * input - input * input * input * input - 0.55 * (input * input * input - input * input * input * input));
     result -= 1.2 / (1. + 0.5 * Zi) * input * input * input * input;
+
+    return result;
+}
+
+const Field3D F33(const Field3D input) {
+    Field3D result;
+    result.allocate();
+
+    result = 1. - (1. + 0.36 / Zi) * input;
+    result += 0.59 / Zi * input * input;
+    result -= 0.23 / Zi * input * input * input;
 
     return result;
 }

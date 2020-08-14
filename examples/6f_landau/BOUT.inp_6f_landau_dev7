@@ -338,7 +338,7 @@ bndry_core = neumann
 bndry_core = neumann
 # bndry_sol = neumann
 
-[Te]  # electron density
+[Te]  # electron densityeta
 # scale = 1.0e-5
 bndry_core = neumann
 # bndry_sol = neumann
