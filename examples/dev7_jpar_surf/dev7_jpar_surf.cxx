@@ -60,7 +60,7 @@ BoutReal jysep1, jysep2, jysep1_2, jysep2_1; // index for x-point on y direction
 Vector2D B0vec; // B0 field vector
 
 /********** Primary variables ************************/
-BoutReal AA, Zi, Mi;              // main ion info (atomic mass, charge and  mass)
+BoutReal AA, Zi, Mi, Zeff;              // main ion info (atomic mass, charge and  mass)
 
 Field2D J0, P0; // Current and pressure
 BoutReal J0_factor, P0_factor;
@@ -153,6 +153,7 @@ bool phi_curv;
 
 
 bool include_curvature, include_jpar0, compress0, compresse;
+BoutReal curv_coeff;
 bool include_vipar;
 bool evolve_pressure, continuity;
 bool parallel_viscous;
@@ -1040,6 +1041,7 @@ int physics_init(bool restarting) {
     OPTION(options, density,              1.0e20);  // number density normalization factor [m^-3]
     OPTION(options, density_unit,         1.0e20);  // Number density unit for grid [m^-3]
     OPTION(options, Zi,                        1);  // ion charge number
+    OPTION(options, Zeff,                      1);  // Zeff used in resistivity calculation
 
     OPTION(options, evolve_jpar,           false);  // If true, evolve J raher than Psi
     OPTION(options, phi_constraint,        false);  // Use solver constraint for phi
@@ -1047,6 +1049,7 @@ int physics_init(bool restarting) {
     // Effects to include/exclude
     OPTION(options, nonlinear,             false);
     OPTION(options, include_curvature,      true);
+    OPTION(options, curv_coeff,               -1);    // if >0, curvature terms are multiplied by this coefficient
     OPTION(options, include_jpar0,          true);
     OPTION(options, evolve_pressure,        true);
     OPTION(options, evolve_psi,             true);
@@ -1369,6 +1372,9 @@ int physics_init(bool restarting) {
 
     if (!include_curvature)
         b0xcv = 0.0;
+
+    if (curv_coeff > 0.0)
+        b0xcv *= curv_coeff;
 
     if (!include_jpar0)
         J0 = 0.0;
@@ -1965,8 +1971,8 @@ int physics_init(bool restarting) {
         output.write("");
         output.write("\tSpizter parameters");
         // output.write("\tTemperature: %e -> %e [eV]\n", min(Te), max(Te));
-        FZ = (1. + 1.198 * Zi + 0.222 * Zi * Zi) / (1. + 2.996 * Zi + 0.753 * Zi * Zi);
-        eta = FZ * 1.03e-4 * Zi * LnLambda * ((Te0 * Tebar) ^ (-1.5)); // eta in Ohm-m. NOTE: ln(Lambda) = 20
+        FZ = (1. + 1.198 * Zeff + 0.222 * Zeff * Zeff) / (1. + 2.996 * Zeff + 0.753 * Zeff * Zeff);
+        eta = FZ * 1.03e-4 * Zeff * LnLambda * ((Te0 * Tebar) ^ (-1.5)); // eta in Ohm-m. NOTE: ln(Lambda) = 20
         output.write("\tSpitzer resistivity: %e -> %e [Ohm m]\n", min(eta), max(eta));
         eta /= MU0 * Va * Lbar;
         // eta.applyBoundary();
@@ -2741,7 +2747,7 @@ int physics_init(bool restarting) {
         output.write("modified collisional trapped particle fraction: ft = %e~%e\n", min(ft, true), max(ft, true));
     }
     if (neo_resist) {
-        f33 = ft / (1. + (0.55 - 0.1 * ft) * sqrt(nu_estar) + 0.45 * (1. - ft) * nu_estar / Zi / sqrt(Zi));
+        f33 = ft / (1. + (0.55 - 0.1 * ft) * sqrt(nu_estar) + 0.45 * (1. - ft) * nu_estar / Zeff / sqrt(Zeff));
         cond_neo = F33(f33);
         output.write("Neoclassical resistivity used\n");
         output.write("\tlocal max eta is %e~%e * eta_Sp\n", 1/max(cond_neo, true), 1/min(cond_neo, true));
@@ -3154,7 +3160,7 @@ int physics_run(BoutReal t) {
         // Update resistivity
         if (spitzer_resist || neo_resist) {
             // Use Spitzer formula
-            eta = FZ * 1.03e-4 * Zi * LnLambda * ((Te_tmp * Tebar) ^ (-1.5)); // eta in Ohm-m. ln(Lambda) = 20
+            eta = FZ * 1.03e-4 * Zeff * LnLambda * ((Te_tmp * Tebar) ^ (-1.5)); // eta in Ohm-m. ln(Lambda) = 20
             eta /= MU0 * Va * Lbar;
             // eta.applyBoundary();
             // mesh->communicate(eta);
@@ -3188,7 +3194,7 @@ int physics_run(BoutReal t) {
 
         if (neo_resist) {
             nu_estar = nu_e * q95 * Lbar / (vth_e) / pow(epsilon, 1.5);
-            f33 = ft / (1. + (0.55 - 0.1 * ft) * sqrt(nu_estar) + 0.45 * (1. - ft) * nu_estar / Zi / sqrt(Zi));
+            f33 = ft / (1. + (0.55 - 0.1 * ft) * sqrt(nu_estar) + 0.45 * (1. - ft) * nu_estar / Zeff / sqrt(Zeff));
             cond_neo = F33(f33);
             eta /= cond_neo;
         }
@@ -3338,7 +3344,7 @@ int physics_run(BoutReal t) {
 #endif
 
     if (evolve_psi)
-        Jpar = -B0 * Delp2(Psi);
+        Jpar = -B0 * Delp2_surf(Psi);
     else
         Jpar = -Delp2(Apar);
     Jpar.applyBoundary();
@@ -4940,9 +4946,9 @@ const Field3D F33(const Field3D input) {
     Field3D result;
     result.allocate();
 
-    result = 1. - (1. + 0.36 / Zi) * input;
-    result += 0.59 / Zi * input * input;
-    result -= 0.23 / Zi * input * input * input;
+    result = 1. - (1. + 0.36 / Zeff) * input;
+    result += 0.59 / Zeff * input * input;
+    result -= 0.23 / Zeff * input * input * input;
 
     return result;
 }

@@ -632,6 +632,89 @@ const Field3D Delp2(const Field3D &f, BoutReal zsmooth) {
 	return result;
 }
 
+const Field3D Delp2_surf(const Field3D &f, BoutReal zsmooth) {
+    int msg_pos = msg_stack.push("Delp2( Field3D )");
+
+    //return mesh->G1*DDX(f) + mesh->G3*DDZ(f) + mesh->g11*D2DX2(f) + mesh->g33*D2DZ2(f); //+ 2.0*mesh->g13*D2DXDZ(f)
+
+    ASSERT2(mesh->xstart > 0); // Need at least one guard cell
+
+    Field3D result;
+    result.allocate();
+
+    BoutReal ***fd, ***rd;
+    fd = f.getData();
+    rd = result.getData();
+
+    int ncz = mesh->ngz-1;
+
+    static dcomplex **ft = (dcomplex**) NULL, **delft;
+    if(ft == (dcomplex**) NULL) {
+        //.allocate memory
+        ft = cmatrix(mesh->ngx, ncz/2 + 1);
+        delft = cmatrix(mesh->ngx, ncz/2 + 1);
+    }
+
+    // Loop over all y indices
+    for(int jy=0;jy<mesh->ngy;jy++) {
+
+        // Take forward FFT
+
+#pragma omp parallel for
+        for(int jx=0;jx<mesh->ngx;jx++)
+            ZFFT(fd[jx][jy], mesh->zShift(jx, jy), ft[jx]);
+
+        // Loop over kz
+#pragma omp parallel for
+        for(int jz=0;jz<=ncz/2;jz++) {
+            BoutReal filter;
+            dcomplex a, b, c;
+
+            if ((zsmooth > 0.0) && (jz > (int) (zsmooth*((BoutReal) ncz)))) filter=0.0; else filter=1.0;
+
+            // No smoothing in the x direction
+            for(int jx=mesh->xstart;jx<=mesh->xend;jx++) {
+                // Perform x derivative
+
+                laplace_tridag_coefs(jx, jy, jz, a, b, c);
+
+                delft[jx][jz] = a*ft[jx][jz] + b*ft[jx][jz] + c*ft[jx][jz];
+                delft[jx][jz] *= filter;
+
+                //Savitzky-Golay 2nd order, 2nd degree in x
+                /*
+                delft[jx][jz] = coef1*(  0.285714 * (ft[jx-2][jz] + ft[jx+2][jz])
+                - 0.142857 * (ft[jx-1][jz] + ft[jx+1][jz])
+                - 0.285714 * ft[jx][jz] );
+
+                delft[jx][jz] -= SQ(kwave)*coef2*ft[jx][jz];
+                */
+            }
+        }
+
+        // Reverse FFT
+#pragma omp parallel for
+        for(int jx=mesh->xstart;jx<=mesh->xend;jx++) {
+
+            ZFFT_rev(delft[jx], mesh->zShift[jx][jy], rd[jx][jy]);
+            rd[jx][jy][ncz] = rd[jx][jy][0];
+        }
+
+        // Boundaries
+        for(int jz=0;jz<ncz;jz++) {
+            rd[0][jy][jz] = 0.0;
+            rd[mesh->ngx-1][jy][jz] = 0.0;
+        }
+    }
+
+    msg_stack.pop(msg_pos);
+
+    // Set the output location
+    result.setLocation(f.getLocation());
+
+    return result;
+}
+
 const FieldPerp Delp2(const FieldPerp &f, BoutReal zsmooth) {
 	FieldPerp result;
 	result.allocate();

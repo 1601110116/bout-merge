@@ -107,6 +107,7 @@ const Field3D Div_K_perp_Grad_perp(const Field2D &kperp, const Field3D &f);
 // perpendicular Laplacian operator
 const Field2D Delp2(const Field2D &f);
 const Field3D Delp2(const Field3D &f, BoutReal zsmooth=-1.0);
+const Field3D Delp2_surf(const Field3D &f, BoutReal zsmooth=-1.0);
 const FieldPerp Delp2(const FieldPerp &f, BoutReal zsmooth=-1.0);
 
 // Perpendicular Laplacian, keeping y derivatives
