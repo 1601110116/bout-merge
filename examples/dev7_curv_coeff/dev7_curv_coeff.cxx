@@ -1983,10 +1983,7 @@ int physics_init(bool restarting) {
         if (resist_coeff > 0.0) {
             eta *= resist_coeff;
         }
-        if (output_eta)
-            dump.add(eta, "eta", 1);
-        else
-            dump.add(eta, "eta", 0);
+
     } else {
         // transition from 0 for large P0 to resistivity for small P0
         if (vac_lund > 0.0) {
@@ -2009,7 +2006,6 @@ int physics_init(bool restarting) {
         if (resist_coeff > 0.0) {
             eta *= resist_coeff;
         }
-        dump.add(eta, "eta", 0);
     }
 
     if (diffusion_par > 0.0 || diffusion_perp > 0.0 || neoclassic_i || neoclassic_e || neo_resist) {
@@ -2555,11 +2551,11 @@ int physics_init(bool restarting) {
                 Er0.z.applyBoundary();
 
                 Er0_dia = Upara0 * Grad(Pi0) / N0;
+                Er0_dia.setBoundary("Vipar");
                 mesh->communicate(Er0_dia);
                 Er0_dia.x.applyBoundary();
                 Er0_dia.y.applyBoundary();
                 Er0_dia.z.applyBoundary();
-                mesh->communicate(Er0_dia);
 
                 Er0_net = Er0 - Er0_dia;
             } else { // WARNING: deprecated
@@ -2578,6 +2574,7 @@ int physics_init(bool restarting) {
             if (diamag_er) {
                 // phi0 = -Upara0*Pi0/max(N0,true);
                 Er0_dia = Upara0 * Grad(Pi0) / N0;
+                Er0_dia.setBoundary("Vipar");
                 mesh->communicate(Er0_dia);
                 Er0_dia.x.applyBoundary();
                 Er0_dia.y.applyBoundary();
@@ -2758,9 +2755,13 @@ int physics_init(bool restarting) {
         f33 = ft / (1. + (0.55 - 0.1 * ft) * sqrt(nu_estar) + 0.45 * (1. - ft) * nu_estar / Zeff / sqrt(Zeff));
         cond_neo = F33(f33);
         output.write("Neoclassical resistivity used\n");
-        output.write("\tlocal max eta is %e~%e * eta_Sp\n", 1/max(cond_neo, true), 1/min(cond_neo, true));
+        output.write("\teta is %e~%e * eta_Sp\n", 1/max(cond_neo, true), 1/min(cond_neo, true));
         eta /= cond_neo;
     }
+    if (output_eta)
+        dump.add(eta, "eta", 1);
+    else
+        dump.add(eta, "eta", 0);
     if (BScurrent) {
         // TODO: check
         Field3D L31, L32, L34;
@@ -3207,7 +3208,7 @@ int physics_run(BoutReal t) {
         }
 
         if (neo_resist) {
-            nu_estar = nu_e * q95 * Lbar / (vth_e) / pow(epsilon, 1.5);
+            nu_estar = nu_e * q95 * major_radius * Lbar / (vth_e) / pow(epsilon, 1.5);
             f33 = ft / (1. + (0.55 - 0.1 * ft) * sqrt(nu_estar) + 0.45 * (1. - ft) * nu_estar / Zeff / sqrt(Zeff));
             cond_neo = F33(f33);
             eta /= cond_neo;
