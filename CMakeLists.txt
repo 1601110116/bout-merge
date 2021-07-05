@@ -542,6 +542,7 @@ if (USE_SCOREP)
 endif()
 set(BOUT_HAS_SCOREP ${USE_SCOREP})
 
+
 include(CheckCXXSourceCompiles)
 check_cxx_source_compiles("int main() { const char* name = __PRETTY_FUNCTION__; }"
         HAS_PRETTY_FUNCTION)
