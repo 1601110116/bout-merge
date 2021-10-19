@@ -1191,6 +1191,7 @@ int physics_init(bool restarting) {
 
     OPTION(options, eHall,                 false);  // electron Hall or electron parallel pressue gradient effects?
     OPTION(options, thermal_force,         false);  // Thermal flux in Ohm's Law
+    OPTION(options, tf_coeff,               0.71);  //  thermal force coefficient. 0.71 for Zeff=1, use Zeff fitting if negative
     OPTION(options, AA,                      2.0);  // ion mass in units of proton mass
     Mi = Mp * AA;
 
@@ -1478,7 +1479,8 @@ int physics_init(bool restarting) {
     }
 
     if (thermal_force) {
-        tf_coeff = 1.5 - 2.4/Zeff + 3.2/Zeff/Zeff - 1.6/Zeff/Zeff/Zeff;
+        if (tf_coeff < 0)
+            tf_coeff = 1.5 - 2.4/Zeff + 3.2/Zeff/Zeff - 1.6/Zeff/Zeff/Zeff;
         output.write("tf_coeff = %e.\n", tf_coeff);
     }
 
